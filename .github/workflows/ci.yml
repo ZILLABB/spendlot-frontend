@@ -1,0 +1,240 @@
+name: SpendLot Receipt Tracker CI/CD
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+  release:
+    types: [ published ]
+
+env:
+  NODE_VERSION: '18'
+  EXPO_CLI_VERSION: 'latest'
+
+jobs:
+  # Code Quality and Testing
+  test:
+    name: Test & Quality Checks
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: 📚 Checkout repository
+      uses: actions/checkout@v4
+      
+    - name: 🏗 Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ env.NODE_VERSION }}
+        cache: 'npm'
+        
+    - name: 📦 Install dependencies
+      run: npm ci
+      
+    - name: 🔍 Run ESLint
+      run: npm run lint
+      
+    - name: 🧪 Run tests
+      run: npm test
+      
+    - name: 📊 Run production tests
+      run: npm run test:production
+      env:
+        REACT_APP_API_BASE_URL: ${{ secrets.API_BASE_URL }}
+        REACT_APP_PLAID_CLIENT_ID: ${{ secrets.PLAID_CLIENT_ID }}
+        REACT_APP_GMAIL_CLIENT_ID: ${{ secrets.GMAIL_CLIENT_ID }}
+      continue-on-error: true
+      
+    - name: 🔧 Validate deployment readiness
+      run: npm run deploy:validate
+      continue-on-error: true
+
+  # Build for different platforms
+  build:
+    name: Build Apps
+    runs-on: ubuntu-latest
+    needs: test
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    
+    strategy:
+      matrix:
+        platform: [ios, android, web]
+        
+    steps:
+    - name: 📚 Checkout repository
+      uses: actions/checkout@v4
+      
+    - name: 🏗 Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ env.NODE_VERSION }}
+        cache: 'npm'
+        
+    - name: 📦 Install dependencies
+      run: npm ci
+      
+    - name: 🏗 Setup Expo CLI
+      run: npm install -g @expo/cli@${{ env.EXPO_CLI_VERSION }}
+      
+    - name: 🔑 Authenticate with Expo
+      run: expo login
+      env:
+        EXPO_CLI_PASSWORD: ${{ secrets.EXPO_CLI_PASSWORD }}
+        EXPO_CLI_USERNAME: ${{ secrets.EXPO_CLI_USERNAME }}
+      
+    - name: 📱 Build for ${{ matrix.platform }}
+      run: |
+        if [ "${{ matrix.platform }}" = "ios" ]; then
+          expo build:ios --non-interactive
+        elif [ "${{ matrix.platform }}" = "android" ]; then
+          expo build:android --non-interactive
+        else
+          expo build:web
+        fi
+      env:
+        EXPO_CLI_PASSWORD: ${{ secrets.EXPO_CLI_PASSWORD }}
+        EXPO_CLI_USERNAME: ${{ secrets.EXPO_CLI_USERNAME }}
+
+  # Security scanning
+  security:
+    name: Security Scan
+    runs-on: ubuntu-latest
+    needs: test
+    
+    steps:
+    - name: 📚 Checkout repository
+      uses: actions/checkout@v4
+      
+    - name: 🏗 Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ env.NODE_VERSION }}
+        cache: 'npm'
+        
+    - name: 📦 Install dependencies
+      run: npm ci
+      
+    - name: 🔒 Run npm audit
+      run: npm audit --audit-level moderate
+      continue-on-error: true
+      
+    - name: 🔍 Run CodeQL Analysis
+      uses: github/codeql-action/init@v2
+      with:
+        languages: javascript
+        
+    - name: 🔍 Perform CodeQL Analysis
+      uses: github/codeql-action/analyze@v2
+
+  # Deployment readiness check
+  deployment-check:
+    name: Deployment Readiness
+    runs-on: ubuntu-latest
+    needs: [test, security]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    
+    steps:
+    - name: 📚 Checkout repository
+      uses: actions/checkout@v4
+      
+    - name: 🏗 Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ env.NODE_VERSION }}
+        cache: 'npm'
+        
+    - name: 📦 Install dependencies
+      run: npm ci
+      
+    - name: 🚀 Generate deployment checklist
+      run: npm run deploy:checklist
+      
+    - name: 📱 Generate screenshot assets
+      run: npm run deploy:screenshots
+      
+    - name: 📊 Upload deployment artifacts
+      uses: actions/upload-artifact@v3
+      with:
+        name: deployment-assets
+        path: |
+          DEPLOYMENT_CHECKLIST.md
+          screenshots/
+        retention-days: 30
+
+  # Release automation
+  release:
+    name: Create Release
+    runs-on: ubuntu-latest
+    needs: [build, deployment-check]
+    if: github.event_name == 'release'
+    
+    steps:
+    - name: 📚 Checkout repository
+      uses: actions/checkout@v4
+      
+    - name: 🏗 Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ env.NODE_VERSION }}
+        cache: 'npm'
+        
+    - name: 📦 Install dependencies
+      run: npm ci
+      
+    - name: 🏗 Setup Expo CLI
+      run: npm install -g @expo/cli@${{ env.EXPO_CLI_VERSION }}
+      
+    - name: 🔑 Authenticate with Expo
+      run: expo login
+      env:
+        EXPO_CLI_PASSWORD: ${{ secrets.EXPO_CLI_PASSWORD }}
+        EXPO_CLI_USERNAME: ${{ secrets.EXPO_CLI_USERNAME }}
+        
+    - name: 📱 Build release apps
+      run: |
+        expo build:ios --release-channel production
+        expo build:android --release-channel production
+      env:
+        EXPO_CLI_PASSWORD: ${{ secrets.EXPO_CLI_PASSWORD }}
+        EXPO_CLI_USERNAME: ${{ secrets.EXPO_CLI_USERNAME }}
+        
+    - name: 📊 Generate release notes
+      run: |
+        echo "## SpendLot Receipt Tracker Release ${{ github.event.release.tag_name }}" > release-notes.md
+        echo "" >> release-notes.md
+        echo "### What's New" >> release-notes.md
+        echo "${{ github.event.release.body }}" >> release-notes.md
+        echo "" >> release-notes.md
+        echo "### Technical Details" >> release-notes.md
+        echo "- Build Date: $(date)" >> release-notes.md
+        echo "- Commit: ${{ github.sha }}" >> release-notes.md
+        echo "- Node.js: ${{ env.NODE_VERSION }}" >> release-notes.md
+        
+    - name: 📤 Upload release assets
+      uses: actions/upload-artifact@v3
+      with:
+        name: release-${{ github.event.release.tag_name }}
+        path: |
+          release-notes.md
+          DEPLOYMENT_CHECKLIST.md
+        retention-days: 90
+
+  # Notification
+  notify:
+    name: Notify Team
+    runs-on: ubuntu-latest
+    needs: [test, build, security, deployment-check]
+    if: always() && github.ref == 'refs/heads/main'
+    
+    steps:
+    - name: 📢 Notify on success
+      if: needs.test.result == 'success' && needs.build.result == 'success'
+      run: |
+        echo "✅ SpendLot Receipt Tracker CI/CD completed successfully!"
+        echo "🚀 Ready for deployment to app stores"
+        
+    - name: 📢 Notify on failure
+      if: needs.test.result == 'failure' || needs.build.result == 'failure'
+      run: |
+        echo "❌ SpendLot Receipt Tracker CI/CD failed!"
+        echo "🔧 Please check the logs and fix issues before deployment"
