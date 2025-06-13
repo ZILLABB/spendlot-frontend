@@ -1,11 +1,14 @@
 import { useContext } from 'react';
 import { useApp } from '../context/AppContext';
-import { getThemeColors, ThemeColors } from '../utils/theme';
+import { getTheme, getThemeColors, Theme, ThemeColors } from '../utils/theme';
 
 export interface UseThemeReturn {
   theme: 'light' | 'dark' | 'system';
   effectiveTheme: 'light' | 'dark';
   colors: ThemeColors;
+  typography: Theme['typography'];
+  design: Theme['design'];
+  fullTheme: Theme;
   isDark: boolean;
   isLight: boolean;
   toggleTheme: () => Promise<void>;
@@ -14,7 +17,8 @@ export interface UseThemeReturn {
 
 export const useTheme = (): UseThemeReturn => {
   const { theme, effectiveTheme, toggleTheme, setTheme } = useApp();
-  
+
+  const fullTheme = getTheme(effectiveTheme);
   const colors = getThemeColors(effectiveTheme);
   const isDark = effectiveTheme === 'dark';
   const isLight = effectiveTheme === 'light';
@@ -23,6 +27,9 @@ export const useTheme = (): UseThemeReturn => {
     theme,
     effectiveTheme,
     colors,
+    typography: fullTheme.typography,
+    design: fullTheme.design,
+    fullTheme,
     isDark,
     isLight,
     toggleTheme,

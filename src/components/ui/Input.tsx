@@ -2,13 +2,15 @@ import React, { useState } from 'react';
 import {
   View,
   TextInput,
-  Text,
   StyleSheet,
   ViewStyle,
   TextStyle,
   TouchableOpacity,
 } from 'react-native';
-import { COLORS, SPACING, FONT_SIZES, BORDER_RADIUS } from '../../constants';
+import { SPACING, BORDER_RADIUS } from '../../constants';
+import { useTheme } from '../../hooks/useTheme';
+import { Text } from './Text';
+import { createTextStyle } from '../../utils/fonts';
 
 interface InputProps {
   label?: string;
@@ -50,30 +52,42 @@ export const Input: React.FC<InputProps> = ({
   onRightIconPress,
 }) => {
   const [isFocused, setIsFocused] = useState(false);
+  const { colors, typography, design } = useTheme();
 
   const getContainerStyle = (): ViewStyle => {
-    return {
-      borderWidth: 1,
-      borderRadius: BORDER_RADIUS.md,
-      borderColor: error
-        ? COLORS.error[500]
-        : isFocused
-        ? COLORS.primary[500]
-        : COLORS.gray[300],
-      backgroundColor: disabled ? COLORS.gray[100] : 'white',
+    const baseStyle: ViewStyle = {
+      borderWidth: 2,
+      borderRadius: BORDER_RADIUS.lg,
       flexDirection: 'row',
       alignItems: multiline ? 'flex-start' : 'center',
-      paddingHorizontal: SPACING.md,
-      paddingVertical: multiline ? SPACING.md : SPACING.sm,
-      minHeight: multiline ? numberOfLines * 20 + 32 : 44,
+      paddingHorizontal: SPACING.lg,
+      paddingVertical: multiline ? SPACING.lg : SPACING.lg,
+      minHeight: multiline ? numberOfLines * 24 + 48 : 52,
+      backgroundColor: disabled ? colors.background.secondary : colors.surface.primary,
     };
+
+    // Border color based on state
+    if (error) {
+      baseStyle.borderColor = colors.border.error;
+    } else if (isFocused) {
+      baseStyle.borderColor = colors.border.focus;
+      Object.assign(baseStyle, design.shadows.sm);
+    } else {
+      baseStyle.borderColor = colors.border.primary;
+    }
+
+    return baseStyle;
   };
 
   const getInputStyle = (): TextStyle => {
     return {
       flex: 1,
-      fontSize: FONT_SIZES.base,
-      color: disabled ? COLORS.gray[500] : COLORS.gray[900],
+      ...createTextStyle(
+        typography.fontSize.base,
+        typography.fontWeight.normal,
+        typography.fontSize.base * typography.lineHeight.normal
+      ),
+      color: disabled ? colors.text.tertiary : colors.text.primary,
       paddingVertical: 0, // Remove default padding
       textAlignVertical: multiline ? 'top' : 'center',
     };
@@ -82,7 +96,12 @@ export const Input: React.FC<InputProps> = ({
   return (
     <View style={[styles.wrapper, style]}>
       {label && (
-        <Text style={[styles.label, error && { color: COLORS.error[500] }]}>
+        <Text
+          variant="body2"
+          weight="medium"
+          color={error ? "error" : "secondary"}
+          style={styles.label}
+        >
           {label}
         </Text>
       )}
@@ -97,7 +116,7 @@ export const Input: React.FC<InputProps> = ({
         <TextInput
           style={[getInputStyle(), inputStyle]}
           placeholder={placeholder}
-          placeholderTextColor={COLORS.gray[400]}
+          placeholderTextColor={colors.text.tertiary}
           value={value}
           onChangeText={onChangeText}
           editable={!disabled}
@@ -123,7 +142,11 @@ export const Input: React.FC<InputProps> = ({
       </View>
       
       {error && (
-        <Text style={styles.errorText}>
+        <Text
+          variant="caption"
+          color="error"
+          style={styles.errorText}
+        >
           {error}
         </Text>
       )}
@@ -133,21 +156,16 @@ export const Input: React.FC<InputProps> = ({
 
 const styles = StyleSheet.create({
   wrapper: {
-    marginBottom: SPACING.md,
+    marginBottom: SPACING.lg,
   },
   label: {
-    fontSize: FONT_SIZES.sm,
-    fontWeight: '600',
-    color: COLORS.gray[700],
-    marginBottom: SPACING.xs,
+    marginBottom: SPACING.md,
   },
   iconContainer: {
-    marginHorizontal: SPACING.xs,
+    marginHorizontal: SPACING.md,
   },
   errorText: {
-    fontSize: FONT_SIZES.sm,
-    color: COLORS.error[500],
-    marginTop: SPACING.xs,
+    marginTop: SPACING.md,
   },
 });
 

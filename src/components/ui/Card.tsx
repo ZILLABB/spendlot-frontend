@@ -6,12 +6,14 @@ import {
   TouchableOpacity,
   TouchableOpacityProps,
 } from 'react-native';
-import { COLORS, SPACING, BORDER_RADIUS } from '../../constants';
+import { SPACING, BORDER_RADIUS } from '../../constants';
+import { useTheme } from '../../hooks/useTheme';
 
 interface CardProps extends TouchableOpacityProps {
   children: React.ReactNode;
-  variant?: 'default' | 'elevated' | 'outlined';
-  padding?: 'none' | 'small' | 'medium' | 'large';
+  variant?: 'default' | 'elevated' | 'outlined' | 'filled';
+  padding?: 'none' | 'small' | 'medium' | 'large' | 'xl';
+  margin?: 'none' | 'small' | 'medium' | 'large';
   style?: ViewStyle;
   onPress?: () => void;
 }
@@ -20,41 +22,36 @@ export const Card: React.FC<CardProps> = ({
   children,
   variant = 'default',
   padding = 'medium',
+  margin = 'none',
   style,
   onPress,
   ...touchableProps
 }) => {
+  const { colors, design } = useTheme();
+
   const getCardStyle = (): ViewStyle => {
     const baseStyle: ViewStyle = {
-      borderRadius: BORDER_RADIUS.lg,
-      backgroundColor: 'white',
+      borderRadius: BORDER_RADIUS.xl,
+      backgroundColor: colors.surface.card,
     };
 
     // Variant styles
     switch (variant) {
       case 'elevated':
-        baseStyle.shadowColor = COLORS.gray[900];
-        baseStyle.shadowOffset = {
-          width: 0,
-          height: 2,
-        };
-        baseStyle.shadowOpacity = 0.1;
-        baseStyle.shadowRadius = 8;
-        baseStyle.elevation = 4; // Android shadow
+        Object.assign(baseStyle, design.shadows.lg);
+        baseStyle.backgroundColor = colors.surface.elevated;
         break;
       case 'outlined':
         baseStyle.borderWidth = 1;
-        baseStyle.borderColor = COLORS.gray[200];
+        baseStyle.borderColor = colors.border.primary;
+        baseStyle.backgroundColor = colors.surface.primary;
+        break;
+      case 'filled':
+        baseStyle.backgroundColor = colors.background.secondary;
+        Object.assign(baseStyle, design.shadows.xs);
         break;
       default: // default
-        baseStyle.shadowColor = COLORS.gray[900];
-        baseStyle.shadowOffset = {
-          width: 0,
-          height: 1,
-        };
-        baseStyle.shadowOpacity = 0.05;
-        baseStyle.shadowRadius = 4;
-        baseStyle.elevation = 2; // Android shadow
+        Object.assign(baseStyle, design.shadows.md);
     }
 
     // Padding styles
@@ -62,13 +59,30 @@ export const Card: React.FC<CardProps> = ({
       case 'none':
         break;
       case 'small':
-        baseStyle.padding = SPACING.sm;
+        baseStyle.padding = SPACING.md;
         break;
       case 'large':
-        baseStyle.padding = SPACING.xl;
+        baseStyle.padding = SPACING['2xl'];
+        break;
+      case 'xl':
+        baseStyle.padding = SPACING['3xl'];
         break;
       default: // medium
-        baseStyle.padding = SPACING.md;
+        baseStyle.padding = SPACING.xl;
+    }
+
+    // Margin styles
+    switch (margin) {
+      case 'none':
+        break;
+      case 'small':
+        baseStyle.margin = SPACING.md;
+        break;
+      case 'large':
+        baseStyle.margin = SPACING.xl;
+        break;
+      default: // medium
+        baseStyle.margin = SPACING.lg;
     }
 
     return baseStyle;

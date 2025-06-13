@@ -1,18 +1,20 @@
 import React from 'react';
 import {
   TouchableOpacity,
-  Text,
   StyleSheet,
   ActivityIndicator,
   ViewStyle,
   TextStyle,
 } from 'react-native';
-import { COLORS, SPACING, FONT_SIZES, BORDER_RADIUS } from '../../constants';
+import { LinearGradient } from 'expo-linear-gradient';
+import { COLORS, SPACING, BORDER_RADIUS, SHADOWS } from '../../constants';
+import { useTheme } from '../../hooks/useTheme';
+import { Text } from './Text';
 
 interface ButtonProps {
   title: string;
   onPress: () => void;
-  variant?: 'primary' | 'secondary' | 'outline' | 'ghost';
+  variant?: 'primary' | 'secondary' | 'outline' | 'ghost' | 'gradient';
   size?: 'small' | 'medium' | 'large';
   disabled?: boolean;
   loading?: boolean;
@@ -20,6 +22,7 @@ interface ButtonProps {
   style?: ViewStyle;
   textStyle?: TextStyle;
   icon?: React.ReactNode;
+  gradient?: string[];
 }
 
 export const Button: React.FC<ButtonProps> = ({
@@ -33,48 +36,60 @@ export const Button: React.FC<ButtonProps> = ({
   style,
   textStyle,
   icon,
+  gradient,
 }) => {
+  const { colors, design } = useTheme();
+
   const getButtonStyle = (): ViewStyle => {
     const baseStyle: ViewStyle = {
-      borderRadius: BORDER_RADIUS.md,
+      borderRadius: BORDER_RADIUS.lg,
       alignItems: 'center',
       justifyContent: 'center',
       flexDirection: 'row',
+      ...design.shadows.sm,
     };
 
     // Size styles
     switch (size) {
       case 'small':
-        baseStyle.paddingVertical = SPACING.xs;
-        baseStyle.paddingHorizontal = SPACING.md;
-        baseStyle.minHeight = 32;
+        baseStyle.paddingVertical = SPACING.md;
+        baseStyle.paddingHorizontal = SPACING.lg;
+        baseStyle.minHeight = 40;
         break;
       case 'large':
-        baseStyle.paddingVertical = SPACING.md;
-        baseStyle.paddingHorizontal = SPACING.xl;
+        baseStyle.paddingVertical = SPACING.lg;
+        baseStyle.paddingHorizontal = SPACING['2xl'];
         baseStyle.minHeight = 56;
         break;
       default: // medium
-        baseStyle.paddingVertical = SPACING.sm;
-        baseStyle.paddingHorizontal = SPACING.lg;
-        baseStyle.minHeight = 44;
+        baseStyle.paddingVertical = SPACING.lg;
+        baseStyle.paddingHorizontal = SPACING.xl;
+        baseStyle.minHeight = 48;
     }
 
     // Variant styles
     switch (variant) {
       case 'secondary':
-        baseStyle.backgroundColor = COLORS.secondary[100];
+        baseStyle.backgroundColor = colors.surface.elevated;
+        baseStyle.borderWidth = 1;
+        baseStyle.borderColor = colors.border.primary;
         break;
       case 'outline':
         baseStyle.backgroundColor = 'transparent';
-        baseStyle.borderWidth = 1;
-        baseStyle.borderColor = COLORS.primary[500];
+        baseStyle.borderWidth = 2;
+        baseStyle.borderColor = colors.primary[500];
         break;
       case 'ghost':
         baseStyle.backgroundColor = 'transparent';
+        baseStyle.shadowOpacity = 0;
+        baseStyle.elevation = 0;
+        break;
+      case 'gradient':
+        // Gradient styling will be handled by LinearGradient component
+        baseStyle.backgroundColor = 'transparent';
         break;
       default: // primary
-        baseStyle.backgroundColor = COLORS.primary[500];
+        baseStyle.backgroundColor = colors.primary[600];
     }
 
     // Disabled state
@@ -90,40 +105,85 @@ export const Button: React.FC<ButtonProps> = ({
     return baseStyle;
   };
 
-  const getTextStyle = (): TextStyle => {
-    const baseStyle: TextStyle = {
-      fontWeight: '600',
-    };
-
-    // Size styles
+  const getTextWeight = () => {
     switch (size) {
       case 'small':
-        baseStyle.fontSize = FONT_SIZES.sm;
-        break;
+        return 'medium';
       case 'large':
-        baseStyle.fontSize = FONT_SIZES.lg;
-        break;
-      default: // medium
-        baseStyle.fontSize = FONT_SIZES.base;
+        return 'semibold';
+      default:
+        return 'semibold';
     }
+  };
 
-    // Variant styles
+  const getTextColor = () => {
     switch (variant) {
       case 'secondary':
-        baseStyle.color = COLORS.secondary[700];
-        break;
+        return 'primary';
       case 'outline':
-        baseStyle.color = COLORS.primary[500];
-        break;
+        return 'accent';
       case 'ghost':
-        baseStyle.color = COLORS.primary[500];
-        break;
+        return 'accent';
+      case 'gradient':
+        return 'inverse';
       default: // primary
-        baseStyle.color = 'white';
+        return 'inverse';
     }
-
-    return baseStyle;
   };
+
+  const getTextSize = () => {
+    switch (size) {
+      case 'small':
+        return 'body2';
+      case 'large':
+        return 'subtitle1';
+      default:
+        return 'body1';
+    }
+  };
+
+  const buttonContent = (
+    <>
+      {loading ? (
+        <ActivityIndicator
+          size="small"
+          color={variant === 'primary' || variant === 'gradient' ? 'white' : colors.primary[500]}
+        />
+      ) : (
+        <>
+          {icon && <>{icon}</>}
+          <Text
+            variant={getTextSize() as any}
+            color={getTextColor() as any}
+            weight={getTextWeight() as any}
+            style={[textStyle, icon ? { marginLeft: SPACING.xs } : null]}
+          >
+            {title}
+          </Text>
+        </>
+      )}
+    </>
+  );
+
+  if (variant === 'gradient') {
+    return (
+      <TouchableOpacity
+        onPress={onPress}
+        disabled={disabled || loading}
+        activeOpacity={0.8}
+        style={style}
+      >
+        <LinearGradient
+          colors={gradient || design.gradients.primary}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 0 }}
+          style={[getButtonStyle(), { backgroundColor: 'transparent' }]}
+        >
+          {buttonContent}
+        </LinearGradient>
+      </TouchableOpacity>
+    );
+  }
 
   return (
     <TouchableOpacity
@@ -132,19 +192,7 @@ export const Button: React.FC<ButtonProps> = ({
       disabled={disabled || loading}
       activeOpacity={0.8}
     >
-      {loading ? (
-        <ActivityIndicator
-          size="small"
-          color={variant === 'primary' ? 'white' : COLORS.primary[500]}
-        />
-      ) : (
-        <>
-          {icon && <>{icon}</>}
-          <Text style={[getTextStyle(), textStyle, icon ? { marginLeft: SPACING.xs } : null]}>
-            {title}
-          </Text>
-        </>
-      )}
+      {buttonContent}
     </TouchableOpacity>
   );
 };

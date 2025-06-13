@@ -1,17 +1,17 @@
 import React, { useState, useEffect } from 'react';
 import {
   View,
-  Text,
   StyleSheet,
   ScrollView,
   RefreshControl,
   TouchableOpacity,
 } from 'react-native';
 import { useAuth } from '../../context/AuthContext';
-import { Card, Button, Loading } from '../../components/ui';
+import { Card, Button, Loading, Text } from '../../components/ui';
 import SpendingChart from '../../components/charts/SpendingChart';
 import SpendingTrendsChart from '../../components/charts/SpendingTrendsChart';
-import { COLORS, SPACING, FONT_SIZES, BORDER_RADIUS } from '../../constants';
+import { SPACING } from '../../constants';
+import { useTheme } from '../../hooks/useTheme';
 import { transactionService } from '../../services/transactionService';
 import { analyticsService } from '../../services/analyticsService';
 import { Transaction, SpendingSummary } from '../../types';
@@ -22,6 +22,7 @@ interface HomeScreenProps {
 
 export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
   const { user } = useAuth();
+  const { colors } = useTheme();
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [spendingSummary, setSpendingSummary] = useState<SpendingSummary | null>(null);
@@ -146,7 +147,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
 
   return (
     <ScrollView
-      style={styles.container}
+      style={[styles.container, { backgroundColor: colors.background.primary }]}
       contentContainerStyle={styles.content}
       refreshControl={
         <RefreshControl refreshing={isRefreshing} onRefresh={handleRefresh} />
@@ -154,33 +155,37 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
     >
       {/* Header */}
       <View style={styles.header}>
-        <Text style={styles.greeting}>
+        <Text variant="h2" weight="bold" color="primary">
           Hello, {user?.firstName || 'User'}! 👋
         </Text>
-        <Text style={styles.subtitle}>
+        <Text variant="subtitle1" color="secondary">
           Here's your spending overview
         </Text>
       </View>
 
       {/* Monthly Summary Card */}
-      <Card style={styles.summaryCard} variant="elevated">
-        <Text style={styles.summaryTitle}>This Month</Text>
-        <Text style={styles.totalAmount}>
+      <Card style={styles.summaryCard} variant="elevated" padding="xl">
+        <Text variant="h6" weight="semibold" color="secondary" style={styles.summaryTitle}>
+          This Month
+        </Text>
+        <Text variant="h1" weight="bold" color="accent" style={styles.totalAmount}>
           {spendingSummary ? formatAmount(spendingSummary.totalAmount, spendingSummary.currency) : '$0.00'}
         </Text>
-        <Text style={styles.transactionCount}>
+        <Text variant="body1" color="secondary">
           {spendingSummary?.transactionCount || 0} transactions
         </Text>
 
         {/* Category Breakdown Preview */}
         {spendingSummary && spendingSummary.categoryBreakdown.length > 0 && (
           <View style={styles.categoryPreview}>
-            <Text style={styles.categoryPreviewTitle}>Top Categories</Text>
+            <Text variant="body2" weight="semibold" color="secondary" style={styles.categoryPreviewTitle}>
+              Top Categories
+            </Text>
             <View style={styles.categoryList}>
               {spendingSummary.categoryBreakdown.slice(0, 3).map((item, index) => (
                 <View key={item.category.id} style={styles.categoryItem}>
                   <Text style={styles.categoryIcon}>{item.category.icon}</Text>
-                  <Text style={styles.categoryAmount}>
+                  <Text variant="body2" weight="semibold" color="primary">
                     {formatAmount(item.amount, spendingSummary.currency)}
                   </Text>
                 </View>
@@ -192,19 +197,23 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
 
       {/* Quick Actions */}
       <View style={styles.quickActions}>
-        <Text style={styles.sectionTitle}>Quick Actions</Text>
+        <Text variant="h5" weight="semibold" color="primary" style={styles.sectionTitle}>
+          Quick Actions
+        </Text>
         <View style={styles.actionButtons}>
           <Button
             title="📷 Scan Receipt"
             onPress={() => navigation.navigate('Receipts', { screen: 'ReceiptCamera' })}
             style={styles.actionButton}
-            variant="outline"
+            variant="gradient"
+            size="large"
           />
           <Button
             title="➕ Add Expense"
             onPress={() => navigation.navigate('Transactions')}
             style={styles.actionButton}
             variant="outline"
+            size="large"
           />
         </View>
       </View>
@@ -212,7 +221,9 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
       {/* Recent Transactions */}
       <View style={styles.recentSection}>
         <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>Recent Transactions</Text>
+          <Text variant="h5" weight="semibold" color="primary">
+            Recent Transactions
+          </Text>
           <Button
             title="View All"
             onPress={() => navigation.navigate('Transactions')}
@@ -222,22 +233,25 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
         </View>
         
         {recentTransactions.length === 0 ? (
-          <Card style={styles.transactionsCard}>
-            <Text style={styles.emptyText}>
+          <Card variant="filled" padding="xl">
+            <Text variant="h6" weight="medium" color="secondary" style={styles.emptyText}>
               No recent transactions
             </Text>
-            <Text style={styles.emptySubtext}>
+            <Text variant="body2" color="tertiary" align="center">
               Start by scanning a receipt or adding an expense manually
             </Text>
           </Card>
         ) : (
-          <Card style={styles.transactionsCard}>
+          <Card variant="default" padding="lg">
             {recentTransactions.map((transaction, index) => (
               <TouchableOpacity
                 key={transaction.id}
                 style={[
                   styles.transactionItem,
-                  index < recentTransactions.length - 1 && styles.transactionItemBorder
+                  index < recentTransactions.length - 1 && {
+                    borderBottomWidth: 1,
+                    borderBottomColor: colors.border.primary
+                  }
                 ]}
                 onPress={() => handleTransactionPress(transaction)}
                 activeOpacity={0.7}
@@ -251,16 +265,20 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
                   </View>
 
                   <View style={styles.transactionInfo}>
-                    <Text style={styles.transactionMerchant}>{transaction.merchantName}</Text>
-                    <Text style={styles.transactionCategory}>{transaction.category.name}</Text>
+                    <Text variant="body1" weight="semibold" color="primary">
+                      {transaction.merchantName}
+                    </Text>
+                    <Text variant="body2" color="secondary">
+                      {transaction.category.name}
+                    </Text>
                   </View>
                 </View>
 
                 <View style={styles.transactionRight}>
-                  <Text style={styles.transactionAmount}>
+                  <Text variant="body1" weight="bold" color="primary" align="right">
                     {formatAmount(transaction.amount, transaction.currency)}
                   </Text>
-                  <Text style={styles.transactionDate}>
+                  <Text variant="caption" color="tertiary" align="right">
                     {formatDate(transaction.date)}
                   </Text>
                 </View>
@@ -312,56 +330,31 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: COLORS.gray[50],
   },
   content: {
-    padding: SPACING.lg,
+    padding: SPACING['2xl'],
   },
   header: {
-    marginBottom: SPACING.xl,
-  },
-  greeting: {
-    fontSize: FONT_SIZES['2xl'],
-    fontWeight: 'bold',
-    color: COLORS.gray[900],
-    marginBottom: SPACING.xs,
-  },
-  subtitle: {
-    fontSize: FONT_SIZES.base,
-    color: COLORS.gray[600],
+    marginBottom: SPACING['3xl'],
   },
   summaryCard: {
     alignItems: 'center',
-    marginBottom: SPACING.xl,
-    paddingVertical: SPACING.xl,
+    marginBottom: SPACING['3xl'],
   },
   summaryTitle: {
-    fontSize: FONT_SIZES.lg,
-    fontWeight: '600',
-    color: COLORS.gray[700],
-    marginBottom: SPACING.sm,
+    marginBottom: SPACING.lg,
   },
   totalAmount: {
-    fontSize: FONT_SIZES['4xl'],
-    fontWeight: 'bold',
-    color: COLORS.primary[600],
-    marginBottom: SPACING.xs,
-  },
-  transactionCount: {
-    fontSize: FONT_SIZES.base,
-    color: COLORS.gray[600],
+    marginBottom: SPACING.md,
   },
   categoryPreview: {
-    marginTop: SPACING.lg,
-    paddingTop: SPACING.lg,
+    marginTop: SPACING['2xl'],
+    paddingTop: SPACING['2xl'],
     borderTopWidth: 1,
-    borderTopColor: COLORS.gray[200],
+    borderTopColor: 'rgba(203, 213, 225, 0.5)',
   },
   categoryPreviewTitle: {
-    fontSize: FONT_SIZES.sm,
-    fontWeight: '600',
-    color: COLORS.gray[700],
-    marginBottom: SPACING.sm,
+    marginBottom: SPACING.lg,
   },
   categoryList: {
     flexDirection: 'row',
@@ -372,71 +365,39 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   categoryIcon: {
-    fontSize: 24,
-    marginBottom: SPACING.xs,
-  },
-  categoryAmount: {
-    fontSize: FONT_SIZES.sm,
-    fontWeight: '600',
-    color: COLORS.gray[700],
+    fontSize: 28,
+    marginBottom: SPACING.md,
   },
   quickActions: {
-    marginBottom: SPACING.xl,
+    marginBottom: SPACING['3xl'],
   },
   sectionTitle: {
-    fontSize: FONT_SIZES.lg,
-    fontWeight: '600',
-    color: COLORS.gray[900],
-    marginBottom: SPACING.md,
+    marginBottom: SPACING.xl,
   },
   actionButtons: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
+    gap: SPACING.lg,
   },
   actionButton: {
     flex: 1,
-    marginHorizontal: SPACING.xs,
   },
   recentSection: {
-    marginBottom: SPACING.xl,
+    marginBottom: SPACING['3xl'],
   },
   sectionHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: SPACING.md,
-  },
-  transactionsCard: {
-    alignItems: 'center',
-    paddingVertical: SPACING.xl,
-  },
-  chartSection: {
     marginBottom: SPACING.xl,
   },
-  chartCard: {
-    alignItems: 'center',
-    paddingVertical: SPACING.xl,
-  },
   emptyText: {
-    fontSize: FONT_SIZES.lg,
-    fontWeight: '600',
-    color: COLORS.gray[600],
-    marginBottom: SPACING.xs,
-  },
-  emptySubtext: {
-    fontSize: FONT_SIZES.sm,
-    color: COLORS.gray[500],
-    textAlign: 'center',
+    marginBottom: SPACING.md,
   },
   transactionItem: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingVertical: SPACING.md,
-  },
-  transactionItemBorder: {
-    borderBottomWidth: 1,
-    borderBottomColor: COLORS.gray[100],
+    paddingVertical: SPACING.lg,
   },
   transactionLeft: {
     flexDirection: 'row',
@@ -444,41 +405,21 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   transactionIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    width: 48,
+    height: 48,
+    borderRadius: 24,
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: SPACING.sm,
+    marginRight: SPACING.lg,
   },
   transactionEmoji: {
-    fontSize: 20,
+    fontSize: 24,
   },
   transactionInfo: {
     flex: 1,
   },
-  transactionMerchant: {
-    fontSize: FONT_SIZES.base,
-    fontWeight: '600',
-    color: COLORS.gray[900],
-    marginBottom: 2,
-  },
-  transactionCategory: {
-    fontSize: FONT_SIZES.sm,
-    color: COLORS.gray[600],
-  },
   transactionRight: {
     alignItems: 'flex-end',
-  },
-  transactionAmount: {
-    fontSize: FONT_SIZES.base,
-    fontWeight: 'bold',
-    color: COLORS.gray[900],
-    marginBottom: 2,
-  },
-  transactionDate: {
-    fontSize: FONT_SIZES.xs,
-    color: COLORS.gray[500],
   },
 });
 
